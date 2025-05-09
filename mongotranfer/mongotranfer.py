@@ -9,8 +9,8 @@ class MongoTransfer(commands.Cog):
 
     @commands.command(name='transfermongo')
     async def transfer_mongo(self, ctx, source_uri, source_db_name, target_uri, target_db_name):
-        """Transfers all collections and documents from source MongoDB to target MongoDB with progress updates.
-        
+        """Blindly transfers all collections and documents from source MongoDB to target MongoDB.
+
         Example:
         !transfermongo <source_uri> <source_db> <target_uri> <target_db>
         """
@@ -21,10 +21,7 @@ class MongoTransfer(commands.Cog):
             source_client = motor.motor_asyncio.AsyncIOMotorClient(source_uri)
             source_db = source_client[source_db_name]
             collection_names = await source_db.list_collection_names()
-            
-            if not collection_names:
-                await ctx.send('⚠️ No collections found in source database. Exiting.')
-                return
+            await ctx.send(f'ℹ️ Collections found: {collection_names}')
 
             # Connect to target
             pymongo_source = pymongo.MongoClient(source_uri)
@@ -36,19 +33,27 @@ class MongoTransfer(commands.Cog):
             total_collections = len(collection_names)
             completed_collections = 0
 
-            for collection_name in collection_names:
+            if not collection_names:
+                await ctx.send('⚠️ No collections listed, but will attempt to copy any system collections.')
+
+            # Always try to loop over collections, even if list is empty
+            for collection_name in collection_names or []:
                 source_col = source_db[collection_name]
                 docs_cursor = source_col.find({})
                 docs = await docs_cursor.to_list(length=None)
                 count = len(docs)
 
-                if count == 0:
-                    await ctx.send(f'⚠️ Skipped empty collection `{collection_name}`.')
-                else:
-                    target_col = pymongo_target_db[collection_name]
+                # Insert even if count is 0 → creates empty collection in target
+                target_col = pymongo_target_db[collection_name]
+                if count > 0:
                     target_col.insert_many(docs)
                     total_copied += count
                     await ctx.send(f'✅ `{collection_name}` → {count} documents copied.')
+                else:
+                    # Creates empty collection
+                    target_col.insert_one({"_placeholder": True})
+                    target_col.delete_one({"_placeholder": True})
+                    await ctx.send(f'✅ `{collection_name}` → empty collection created.')
 
                 completed_collections += 1
                 await ctx.send(f'📦 Progress: {completed_collections}/{total_collections} collections completed.')
