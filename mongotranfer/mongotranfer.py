@@ -37,8 +37,7 @@ class MongoTransfer(commands.Cog):
             target_db = target_client.get_default_database()
             target_col = target_db[target_collection]
 
-            # Insert documents
-            # motor needs pymongo InsertMany due to ObjectId serialization
+            # Insert documents using pymongo for proper ObjectId handling
             pymongo_target = pymongo.MongoClient(target_uri)
             pymongo_db = pymongo_target.get_default_database()
             pymongo_col = pymongo_db[target_collection]
@@ -59,3 +58,7 @@ class MongoTransfer(commands.Cog):
 
         except Exception as e:
             await ctx.send(f'❌ Error: {str(e)}')
+
+# ✅ Required setup function for the cog loader
+async def setup(bot):
+    await bot.add_cog(MongoTransfer(bot))
