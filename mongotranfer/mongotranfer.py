@@ -8,18 +8,18 @@ class MongoTransfer(commands.Cog):
         self.bot = bot
 
     @commands.command(name='transfermongo')
-    async def transfer_mongo(self, ctx, source_uri, target_uri):
+    async def transfer_mongo(self, ctx, source_uri, source_db_name, target_uri, target_db_name):
         """Transfers all collections and documents from source MongoDB to target MongoDB with progress updates.
         
         Example:
-        !transfermongo <source_uri> <target_uri>
+        !transfermongo <source_uri> <source_db> <target_uri> <target_db>
         """
         await ctx.send('🚀 Starting full database transfer...')
 
         try:
             # Connect to source
             source_client = motor.motor_asyncio.AsyncIOMotorClient(source_uri)
-            source_db = source_client.get_default_database()
+            source_db = source_client[source_db_name]
             collection_names = await source_db.list_collection_names()
             
             if not collection_names:
@@ -28,9 +28,9 @@ class MongoTransfer(commands.Cog):
 
             # Connect to target
             pymongo_source = pymongo.MongoClient(source_uri)
-            pymongo_source_db = pymongo_source.get_default_database()
+            pymongo_source_db = pymongo_source[source_db_name]
             pymongo_target = pymongo.MongoClient(target_uri)
-            pymongo_target_db = pymongo_target.get_default_database()
+            pymongo_target_db = pymongo_target[target_db_name]
 
             total_copied = 0
             total_collections = len(collection_names)
