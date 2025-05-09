@@ -8,57 +8,61 @@ class MongoTransfer(commands.Cog):
         self.bot = bot
 
     @commands.command(name='transfermongo')
-    async def transfer_mongo(self, ctx, source_uri, source_collection, target_uri, target_collection, delete_after='false'):
-        """Transfers documents between MongoDB databases.
+    async def transfer_mongo(self, ctx, source_uri, target_uri):
+        """Transfers all collections and documents from source MongoDB to target MongoDB with progress updates.
         
         Example:
-        !transfermongo <source_uri> <source_collection> <target_uri> <target_collection> [delete_after]
+        !transfermongo <source_uri> <target_uri>
         """
-        await ctx.send('Starting transfer...')
+        await ctx.send('🚀 Starting full database transfer...')
 
         try:
             # Connect to source
             source_client = motor.motor_asyncio.AsyncIOMotorClient(source_uri)
             source_db = source_client.get_default_database()
-            source_col = source_db[source_collection]
-
-            # Fetch documents
-            docs_cursor = source_col.find({})
-            docs = await docs_cursor.to_list(length=None)
-            total_docs = len(docs)
-            await ctx.send(f'Fetched {total_docs} documents from source.')
-
-            if total_docs == 0:
-                await ctx.send('No documents to transfer. Exiting.')
+            collection_names = await source_db.list_collection_names()
+            
+            if not collection_names:
+                await ctx.send('⚠️ No collections found in source database. Exiting.')
                 return
 
             # Connect to target
-            target_client = motor.motor_asyncio.AsyncIOMotorClient(target_uri)
-            target_db = target_client.get_default_database()
-            target_col = target_db[target_collection]
-
-            # Insert documents using pymongo for proper ObjectId handling
+            pymongo_source = pymongo.MongoClient(source_uri)
+            pymongo_source_db = pymongo_source.get_default_database()
             pymongo_target = pymongo.MongoClient(target_uri)
-            pymongo_db = pymongo_target.get_default_database()
-            pymongo_col = pymongo_db[target_collection]
-            pymongo_col.insert_many(docs)
-            await ctx.send(f'Successfully inserted {total_docs} documents into target.')
+            pymongo_target_db = pymongo_target.get_default_database()
 
-            # Optional delete after transfer
-            if delete_after.lower() == 'true':
-                delete_result = await source_col.delete_many({})
-                await ctx.send(f'Deleted {delete_result.deleted_count} documents from source after transfer.')
+            total_copied = 0
+            total_collections = len(collection_names)
+            completed_collections = 0
+
+            for collection_name in collection_names:
+                source_col = source_db[collection_name]
+                docs_cursor = source_col.find({})
+                docs = await docs_cursor.to_list(length=None)
+                count = len(docs)
+
+                if count == 0:
+                    await ctx.send(f'⚠️ Skipped empty collection `{collection_name}`.')
+                else:
+                    target_col = pymongo_target_db[collection_name]
+                    target_col.insert_many(docs)
+                    total_copied += count
+                    await ctx.send(f'✅ `{collection_name}` → {count} documents copied.')
+
+                completed_collections += 1
+                await ctx.send(f'📦 Progress: {completed_collections}/{total_collections} collections completed.')
 
             # Close clients
             source_client.close()
-            target_client.close()
+            pymongo_source.close()
             pymongo_target.close()
 
-            await ctx.send('✅ Transfer completed successfully.')
+            await ctx.send(f'🎉 Transfer completed! Total documents copied: **{total_copied}** across **{total_collections}** collections.')
 
         except Exception as e:
             await ctx.send(f'❌ Error: {str(e)}')
 
-# ✅ Required setup function for the cog loader
+# ✅ Required setup function
 async def setup(bot):
     await bot.add_cog(MongoTransfer(bot))
