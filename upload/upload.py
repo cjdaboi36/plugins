@@ -30,10 +30,12 @@ class FileUpload(commands.Cog):
             file_bytes = await attachment.read()
             filename = attachment.filename
 
-            async with aiohttp.ClientSession() as session:
+            headers = {"User-Agent": "FileUploadBot/1.0"}
+
+            async with aiohttp.ClientSession(headers=headers) as session:
                 data = aiohttp.FormData()
                 data.add_field('filename', filename)
-                data.add_field('file', file_bytes, filename=filename, content_type=attachment.content_type)
+                data.add_field('file', file_bytes, filename=filename, content_type=attachment.content_type or 'application/octet-stream')
 
                 async with session.post(WEB_SERVER_URL, data=data) as resp:
                     if resp.status == 200:
@@ -41,8 +43,8 @@ class FileUpload(commands.Cog):
                         await user.send(f"✅ File uploaded! Here’s your link:\n{link}")
                     else:
                         await user.send(f"❌ Upload failed with status {resp.status}.")
-        except discord.HTTPException:
-            await ctx.send(f"{ctx.author.mention} I couldn't send you a DM. Please make sure your DMs are open.")
+        except discord.Forbidden:
+            await ctx.send(f"{ctx.author.mention} I couldn't send you a DM. Please open your DMs.")
         except asyncio.TimeoutError:
             await user.send("⏰ You took too long to upload the file. Please try again.")
         except Exception as e:
