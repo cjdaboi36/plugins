@@ -27,8 +27,8 @@ class FileUpload(commands.Cog):
 
             async with aiohttp.ClientSession(headers=headers) as session:
                 data = aiohttp.FormData()
-                data.add_field('filename', filename)
                 data.add_field('file', file_bytes, filename=filename, content_type=content_type)
+                data.add_field('filename', filename)
 
                 async with session.post(WEB_SERVER_URL, data=data) as resp:
                     if resp.status == 200:
