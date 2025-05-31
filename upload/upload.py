@@ -5,10 +5,6 @@ import asyncio
 
 WEB_SERVER_URL = 'https://files.cjscommissions.xyz/upload'
 
-class FileUpload(commands.Cog):
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
-
  class FileUploadCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
