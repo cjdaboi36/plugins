@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import aiohttp
 
-WEB_SERVER_URL = 'http://files.cjscommissions.xyz/upload'
+WEB_SERVER_URL = 'http://46.202.82.156:3002/upload'
 
 class FileUpload(commands.Cog):
     def __init__(self, bot: commands.Bot):
